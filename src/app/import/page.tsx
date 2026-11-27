@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import FitParser from 'fit-file-parser';
-import { ArrowLeft, UploadCloud, ShieldCheck, Activity, Mountain, Heart } from 'lucide-react';
+import { ArrowLeft, UploadCloud, ShieldCheck, Activity, Mountain, Heart, Save, Check } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { cleanAndAnalyzeTrack, parseGPXText, ProcessedActivity } from '@/lib/activityProcessor';
+import { saveActivityToCloud } from '@/lib/activityService';
 
 function formatPace(secPerKm: number): string {
   if (!secPerKm || secPerKm <= 0 || !isFinite(secPerKm)) return '--:--';
@@ -15,9 +17,12 @@ function formatPace(secPerKm: number): string {
 }
 
 export default function ImportActivityPage() {
+  const router = useRouter();
   const [activity, setActivity] = useState<ProcessedActivity | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -25,6 +30,7 @@ export default function ImportActivityPage() {
 
     setIsParsing(true);
     setError(null);
+    setSavedSuccess(false);
 
     try {
       const ext = file.name.split('.').pop()?.toLowerCase();
@@ -66,6 +72,20 @@ export default function ImportActivityPage() {
     }
   };
 
+  const handleSaveLog = async () => {
+    if (!activity) return;
+    setIsSaving(true);
+    try {
+      await saveActivityToCloud(activity);
+      setSavedSuccess(true);
+      setTimeout(() => router.push('/dashboard'), 1000);
+    } catch (err: any) {
+      setError('Gagal menyimpan ke Training Log: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200">
@@ -78,6 +98,9 @@ export default function ImportActivityPage() {
             <p className="text-xs text-slate-500">Garmin &bull; Coros &bull; Huawei Health (.FIT / .GPX)</p>
           </div>
         </div>
+        <Link href="/dashboard" className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium">
+          Lihat Training Log
+        </Link>
       </header>
 
       <main className="max-w-4xl mx-auto p-6 space-y-6">
@@ -93,7 +116,7 @@ export default function ImportActivityPage() {
 
         {activity && (
           <div className="space-y-6">
-            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between">
+            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <ShieldCheck className="w-6 h-6 text-emerald-600" />
                 <div>
@@ -103,9 +126,14 @@ export default function ImportActivityPage() {
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-600 text-white rounded-full">
-                Clean Data
-              </span>
+              <button
+                onClick={handleSaveLog}
+                disabled={isSaving || savedSuccess}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg shadow-sm transition"
+              >
+                {savedSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Menyimpan...' : savedSuccess ? 'Tersimpan!' : 'Simpan ke Training Log'}
+              </button>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

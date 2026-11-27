@@ -234,6 +234,12 @@ export default function RouteBuilderPage() {
 
         <div className="flex items-center gap-2">
           <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+          >
+            Training Log
+          </Link>
+          <Link
             href="/import"
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
           >
