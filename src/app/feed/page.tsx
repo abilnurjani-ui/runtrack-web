@@ -110,10 +110,10 @@ export default function CommunityFeedPage() {
           <div>
             <h1 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
               <Award className="w-5 h-5 text-orange-600" />
-              Feed Aktivitas Komunitas Pelari
+              SSO RUNNERS // Move • Connect • Grow
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Fokus murni pada progres latihan, pace, & elevasi sesama pelari.
+              Samarinda Multi Sport Community (@samasama.olahraga) — Mari #samasamaolahraga dan menjadi sporty yang kau minta.
             </p>
           </div>
           <Link
