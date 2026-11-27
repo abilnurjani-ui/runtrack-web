@@ -377,8 +377,8 @@ export default function RouteBuilderPage() {
                   width={40}
                 />
                 <Tooltip
-                  formatter={(value: number) => [`${value.toFixed(1)} m`, 'Elevasi']}
-                  labelFormatter={(label: number) => `Jarak: ${(label / 1000).toFixed(2)} km`}
+                  formatter={(v: any) => [`${Number(v || 0).toFixed(1)} m`, "Elevasi"]} m`, 'Elevasi']}
+                  labelFormatter={(l: any) => `Jarak: ${(Number(l || 0) / 1000).toFixed(2)} km`} km`}
                 />
                 <Area type="monotone" dataKey="ele" stroke="#F97316" strokeWidth={2} fill="url(#eleGrad)" />
               </AreaChart>
