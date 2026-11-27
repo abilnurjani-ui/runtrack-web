@@ -15,16 +15,25 @@ function formatPace(secPerKm: number | null): string {
 
 export default function TrainingDashboardPage() {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
+  const [acwr, setAcwr] = useState({
+    acuteLoadKm: 0,
+    chronicWeeklyAvgKm: 0,
+    ratio: 0,
+    status: 'Memuat...',
+    color: 'text-slate-600 bg-slate-100',
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchActivities()
-      .then(setActivities)
+      .then((data) => {
+        setActivities(data);
+        setAcwr(calculateACWR(data));
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  const acwr = calculateACWR(activities);
   const totalKm = activities.reduce((acc, a) => acc + Number(a.distance_m) / 1000, 0);
   const totalEle = activities.reduce((acc, a) => acc + Number(a.elevation_gain_m || 0), 0);
 
@@ -58,7 +67,6 @@ export default function TrainingDashboardPage() {
       </header>
 
       <main className="max-w-5xl mx-auto p-6 space-y-6">
-        {/* Kartu Ringkasan & ACWR */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-5 rounded-xl border border-slate-200 md:col-span-2">
             <div className="flex items-center justify-between">
@@ -90,7 +98,6 @@ export default function TrainingDashboardPage() {
           </div>
         </div>
 
-        {/* Grafik Jarak 10 Sesi Terakhir */}
         {chartData.length > 0 && (
           <div className="bg-white p-5 rounded-xl border border-slate-200 h-60">
             <p className="text-xs font-semibold uppercase text-slate-500 mb-3 flex items-center gap-1.5">
@@ -107,7 +114,6 @@ export default function TrainingDashboardPage() {
           </div>
         )}
 
-        {/* Daftar Riwayat Aktivitas */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 font-semibold text-sm">
             Riwayat Sesi Lari
