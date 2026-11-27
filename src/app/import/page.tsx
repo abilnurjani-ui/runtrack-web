@@ -4,8 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FitParser from 'fit-file-parser';
-import { ArrowLeft, UploadCloud, ShieldCheck, Activity, Mountain, Heart, Save, Check } from 'lucide-react';
+import { UploadCloud, ShieldCheck, Activity, Mountain, Heart, Save, Check, Globe, Lock } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import Navbar from '@/components/Navbar';
 import { cleanAndAnalyzeTrack, parseGPXText, ProcessedActivity } from '@/lib/activityProcessor';
 import { saveActivityToCloud } from '@/lib/activityService';
 
@@ -19,6 +20,9 @@ function formatPace(secPerKm: number): string {
 export default function ImportActivityPage() {
   const router = useRouter();
   const [activity, setActivity] = useState<ProcessedActivity | null>(null);
+  const [customTitle, setCustomTitle] = useState('');
+  const [caption, setCaption] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -38,6 +42,7 @@ export default function ImportActivityPage() {
         const text = await file.text();
         const result = parseGPXText(text);
         setActivity(result);
+        setCustomTitle(result.title);
       } else if (ext === 'fit') {
         const buffer = await file.arrayBuffer();
         const fitParser = new FitParser({ force: true, speedUnit: 'm/s', lengthUnit: 'm' });
@@ -57,8 +62,10 @@ export default function ImportActivityPage() {
             time: r.timestamp ? new Date(r.timestamp) : undefined,
             hr: r.heart_rate,
           }));
-          const result = cleanAndAnalyzeTrack(file.name.replace(/\.fit$/i, ''), rawPoints);
+          const title = file.name.replace(/\.fit$/i, '');
+          const result = cleanAndAnalyzeTrack(title, rawPoints);
           setActivity(result);
+          setCustomTitle(title);
           setIsParsing(false);
         });
         return;
@@ -76,11 +83,14 @@ export default function ImportActivityPage() {
     if (!activity) return;
     setIsSaving(true);
     try {
-      await saveActivityToCloud(activity);
+      await saveActivityToCloud(
+        { ...activity, title: customTitle || activity.title },
+        { isPublic, caption }
+      );
       setSavedSuccess(true);
-      setTimeout(() => router.push('/dashboard'), 1000);
+      setTimeout(() => router.push(isPublic ? '/feed' : '/dashboard'), 900);
     } catch (err: any) {
-      setError('Gagal menyimpan ke Training Log: ' + err.message);
+      setError(err.message);
     } finally {
       setIsSaving(false);
     }
@@ -88,22 +98,14 @@ export default function ImportActivityPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="font-bold text-lg">Import & Clean Smartwatch Activity</h1>
-            <p className="text-xs text-slate-500">Garmin &bull; Coros &bull; Huawei Health (.FIT / .GPX)</p>
-          </div>
-        </div>
-        <Link href="/dashboard" className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium">
-          Lihat Training Log
-        </Link>
-      </header>
+      <Navbar />
 
       <main className="max-w-4xl mx-auto p-6 space-y-6">
+        <div>
+          <h1 className="font-extrabold text-xl">Import & Bagikan Sesi Lari</h1>
+          <p className="text-xs text-slate-500">Unggah file .FIT atau .GPX dari Garmin, Coros, atau Huawei Health</p>
+        </div>
+
         <label className="flex flex-col items-center justify-center p-10 bg-white border-2 border-dashed border-slate-300 hover:border-orange-500 rounded-2xl cursor-pointer transition">
           <UploadCloud className="w-10 h-10 text-orange-500 mb-3" />
           <p className="font-semibold text-slate-800">Pilih file .FIT atau .GPX dari perangkat Anda</p>
@@ -116,24 +118,71 @@ export default function ImportActivityPage() {
 
         {activity && (
           <div className="space-y-6">
-            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-6 h-6 text-emerald-600" />
-                <div>
-                  <p className="font-semibold text-emerald-900">Anti-Data Pollution Aktif</p>
-                  <p className="text-xs text-emerald-700">
-                    {activity.glitchesRemoved} titik anomali GPS dibersihkan dari {activity.rawPointsCount} titik mentah.
-                  </p>
-                </div>
+            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center gap-3">
+              <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
+              <div>
+                <p className="font-semibold text-emerald-900">Anti-Data Pollution Aktif</p>
+                <p className="text-xs text-emerald-700">
+                  {activity.glitchesRemoved} titik anomali GPS dibersihkan dari {activity.rawPointsCount} titik mentah.
+                </p>
               </div>
-              <button
-                onClick={handleSaveLog}
-                disabled={isSaving || savedSuccess}
-                className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg shadow-sm transition"
-              >
-                {savedSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                {isSaving ? 'Menyimpan...' : savedSuccess ? 'Tersimpan!' : 'Simpan ke Training Log'}
-              </button>
+            </div>
+
+            {/* Pengaturan Judul, Catatan Olahraga & Visibilitas Medsos */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Judul Sesi Lari</label>
+                <input
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Catatan Latihan / Feel (Opsional)</label>
+                <textarea
+                  rows={2}
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  placeholder="Contoh: Easy run pagi hari, HR terjaga di Zona 2..."
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsPublic(true)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
+                      isPublic ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-white border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    Bagikan ke Feed Pelari
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPublic(false)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
+                      !isPublic ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    Simpan Pribadi Saja
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleSaveLog}
+                  disabled={isSaving || savedSuccess}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold rounded-xl shadow-sm transition"
+                >
+                  {savedSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                  {isSaving ? 'Menyimpan...' : savedSuccess ? 'Berhasil!' : isPublic ? 'Simpan & Posting ke Feed' : 'Simpan ke Log Pribadi'}
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -177,7 +226,7 @@ export default function ImportActivityPage() {
                     formatter={(v: any) => [`${Number(v || 0).toFixed(1)} m`, 'Elevasi']}
                     labelFormatter={(l: any) => `Jarak: ${(Number(l || 0) / 1000).toFixed(2)} km`}
                   />
-                  <Area type="monotone" dataKey="ele" stroke="#F97316" strokeWidth={2} fill="#FDBA74" fillOpacity={0.3} />
+                  <Area type="monotone" dataKey="ele" stroke="#FC4C02" strokeWidth={2} fill="#FDBA74" fillOpacity={0.3} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
