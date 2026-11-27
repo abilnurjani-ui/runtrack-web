@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import * as maplibregl from 'maplibre-gl';
@@ -10,7 +10,7 @@ import { Download, ArrowLeft, MapPin, Mountain, Compass } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { generateGPXString, downloadGPXFile, RoutePoint, Waypoint } from '@/lib/gpxGenerator';
 
-export default function SharedRoutePage() {
+function SharedRouteContent() {
   const params = useParams();
   const routeId = params?.id as string;
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -186,5 +186,13 @@ export default function SharedRoutePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SharedRoutePage() {
+  return (
+    <Suspense fallback={<div className="h-screen flex items-center justify-center text-slate-500">Memuat rute lari...</div>}>
+      <SharedRouteContent />
+    </Suspense>
   );
 }
